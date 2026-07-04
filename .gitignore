@@ -1,0 +1,19 @@
+# data lake contents (regenerate with the phase01 generator — do not commit)
+data/
+!data/.gitkeep
+
+# spark / python noise
+spark-warehouse/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.crc
+.DS_Store
+
+# local env pin is fine to keep, but ignore virtualenvs
+.venv/
+venv/
+
+# spark local metastore
+metastore_db/
+derby.log

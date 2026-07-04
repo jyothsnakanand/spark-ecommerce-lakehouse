@@ -1,0 +1,22 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:pyenv",
+
+    // Use the learn_spark pyenv env so `pyspark` and friends resolve.
+    "python.defaultInterpreterPath": "/Users/jyothsnakullatira/.pyenv/versions/3.12.11/envs/learn_spark/bin/python",
+
+    // Let Pylance find `import _spark` (jobs/ is added to sys.path at runtime).
+    "python.analysis.extraPaths": ["jobs"],
+
+    // PySpark's DataFrame/Column API confuses static type checkers
+    // (e.g. F.col("x") > 100, `sum as _sum`). Turn type-checking noise off.
+    "python.analysis.typeCheckingMode": "off",
+
+    // Belt-and-suspenders: silence the specific diagnostics PySpark trips.
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "none",
+        "reportAttributeAccessIssue": "none",
+        "reportOptionalMemberAccess": "none",
+        "reportArgumentType": "none",
+        "reportCallIssue": "none"
+    }
+}
