@@ -39,9 +39,9 @@ DEVICES = ["mobile", "mobile", "desktop", "tablet"]
 BASE_TS = datetime(2026, 7, 4, 12, 0, 0)
 
 
-def make_event():
+def make_event(base_ts=BASE_TS, span=600):
     t = weighted_tenant()
-    ts = BASE_TS + timedelta(seconds=random.randint(0, 599))   # within a 10-min span
+    ts = base_ts + timedelta(seconds=random.randint(0, span - 1))
     return {
         "tenant_id": t,
         "event_id": f"e_{random.getrandbits(64):016x}",
@@ -60,20 +60,29 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--files", type=int, default=1)
     ap.add_argument("--events", type=int, default=200)
+    ap.add_argument("--out", default=STREAM_DIR, help="output folder")
+    ap.add_argument("--now", action="store_true",
+                    help="timestamp events at NOW over a 90s span (for the LIVE demo) "
+                         "instead of the fixed reproducible BASE_TS")
     args = ap.parse_args()
 
-    os.makedirs(STREAM_DIR, exist_ok=True)
+    if args.now:
+        base_ts, span = datetime.now() - timedelta(seconds=90), 90
+    else:
+        base_ts, span = BASE_TS, 600
+
+    os.makedirs(args.out, exist_ok=True)
     for i in range(args.files):
         # unique name (timestamp + random) so each file is "new" to the stream
         fname = f"events_{int(time.time()*1000)}_{random.getrandbits(16):04x}.json"
-        path = os.path.join(STREAM_DIR, fname)
+        path = os.path.join(args.out, fname)
         with open(path, "w") as f:
             for _ in range(args.events):
-                f.write(json.dumps(make_event()) + "\n")   # JSON Lines: one object per line
+                f.write(json.dumps(make_event(base_ts, span)) + "\n")  # JSON Lines
         print(f"  wrote {args.events} events -> {path}")
         time.sleep(0.01)  # ensure distinct timestamps in filenames
 
-    total = len([x for x in os.listdir(STREAM_DIR) if x.endswith(".json")])
+    total = len([x for x in os.listdir(args.out) if x.endswith(".json")])
     print(f"stream folder now holds {total} json file(s)")
 
 

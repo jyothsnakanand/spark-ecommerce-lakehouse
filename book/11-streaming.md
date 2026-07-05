@@ -43,3 +43,17 @@ per_min.writeStream.format("console").outputMode("update")
 ## Output modes
 **append** (only finalized rows, needs watermark) · **update** (changed rows) ·
 **complete** (whole result table each batch).
+
+## Going deeper — continuous execution
+[`streaming_click_metrics_live.py`](../phases/phase11-streaming/streaming_click_metrics_live.py)
+runs the query **forever** (`awaitTermination`) with a `trigger(processingTime="4 seconds")`
+instead of `availableNow`. Feed it with `generate_clickstream.py --now --out <dir>` (the
+`--now` flag timestamps events at wall-clock so windows advance). You watch batches fire
+on the clock — empty when idle, updating counts within seconds when a file drips in, and
+finalizing/evicting old windows as event-time passes the watermark. (Run the stream with
+`python -u` so console output isn't buffered.)
+
+| | `availableNow` | continuous |
+|---|---|---|
+| lifecycle | drain files, stop | runs forever |
+| use | reproducible backfill / batch-as-stream | live dashboards/pipelines |
