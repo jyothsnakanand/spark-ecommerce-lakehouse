@@ -40,6 +40,20 @@ reconciliation**: `silver + rejected == bronze`.
   *valid* (just old dates), so they correctly stay in silver. Your generator's "dirty"
   and your cleaning's "bad" can legitimately disagree.
 
+## A design question worth pausing on: what does "rejected" mean?
+Should `rejected = orders − valid` or `orders − deduped`? They answer *different*
+questions:
+- **`orders − valid` = bad records only** (validation failures). This is what you want in
+  a quarantine table: a human opens it and every row is a genuine **defect** to fix.
+- **`orders − deduped` = bad records + duplicate copies.** A duplicate isn't *bad* data,
+  just redundant — mixing it into the quarantine bin makes debugging harder.
+
+So we tag by **reason** and count dropped-duplicates separately, rather than lumping them
+in. Two subtleties: `subtract` is **set-based / distinct** (SQL `EXCEPT DISTINCT`), so exact
+duplicates don't land in `rejected` under either formula; and the tag pattern (one pass with
+`rejection_reason`) is cheaper than `subtract` (which is itself a wide shuffle) *and* gives
+airtight, labelled accounting: every bronze row is either in silver or in rejected-with-a-reason.
+
 ## Success criteria
 A clean silver table, a reason-tagged quarantine table, a repeatable job, and a
 written list of data-quality rules.

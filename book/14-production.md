@@ -39,6 +39,23 @@ binary checks**, and metrics tests cost ~nothing (no Spark). In production these
 monitoring backend (alerting), a warehouse table (history), and a data-observability tool
 (anomaly detection) — see the note at the end of this chapter.
 
+## Where metrics live in production (our JSONL is a stand-in)
+"Metrics" is really three concerns going to three places — don't collapse them into one file:
+1. **Alerting & dashboards** → a time-series backend: **Prometheus + Grafana**, **Datadog**,
+   **CloudWatch**. Spark's own **Dropwizard metrics system** (`spark.metrics.conf`) has a
+   Prometheus sink for *engine* metrics. Your *job* metrics are pushed here at run end. This
+   is the layer that pages on-call.
+2. **Run history & lineage** → the **orchestrator** (Airflow/Dagster/Prefect) metadata store,
+   plus an append-only **metrics table in the warehouse** (a Delta/Iceberg table, not a raw
+   file — ACID appends so concurrent jobs don't corrupt it). This is the correct version of
+   our `metrics.jsonl`.
+3. **Data-quality metrics & anomaly detection** → **Monte Carlo / Bigeye / Soda / Great
+   Expectations / Lakehouse Monitoring**, which replace hardcoded `BANDS` with **learned
+   baselines** so you don't hand-tune thresholds as volume grows.
+
+Why not a file in the lake: no alerting/querying/retention, append races between jobs, no
+on-call integration. The *emit-every-run* instinct is right; production just fans it out.
+
 ## The recurring themes across all phases
 - **Idempotency** — a job you can safely re-run (dynamic overwrite, deterministic ids).
 - **Observability** — plans, the Spark UI, and emitted metrics.

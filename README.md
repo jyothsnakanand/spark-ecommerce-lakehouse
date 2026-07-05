@@ -44,6 +44,7 @@ relative to it).
 | 13 | [Testing & data contracts](book/13-testing.md) | pytest, invariants, referential integrity, metric reconciliation |
 | 14 | [Production hardening](book/14-production.md) | runbooks, job metrics, ownership, SLAs |
 | 15 | [OLTP vs OLAP (Spanner)](book/15-spanner.md) | system boundaries, CDC, why Spark is not your serving layer |
+| — | [Appendix: conventions & gotchas](book/appendix-gotchas.md) | env setup, `F`/`lit` conventions, and the traps that cost us time |
 
 ---
 

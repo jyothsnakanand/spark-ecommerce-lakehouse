@@ -57,3 +57,24 @@ finalizing/evicting old windows as event-time passes the watermark. (Run the str
 |---|---|---|
 | lifecycle | drain files, stop | runs forever |
 | use | reproducible backfill / batch-as-stream | live dashboards/pipelines |
+
+## Is Structured Streaming the right tool? (vs Kafka Connect vs Flink)
+First, untangle the names: **Spark Streaming (DStreams)** is the *legacy* API — don't use it.
+**Structured Streaming** is the current one (this chapter). And **Kafka** is a *transport*,
+not a processor — you don't pick "Spark **or** Kafka", you usually do **Kafka → Spark**
+(`readStream.format("kafka")`). The real choice is what reads/processes the stream:
+
+- **Just landing raw events (no transform)** → a **Kafka Connect sink** (S3/GCS), **Kinesis
+  Firehose**, or **Pub/Sub → GCS**. Low-code, cheap, exactly-once handled for you. Don't reach
+  for Spark, and **never hand-roll a `KafkaConsumer` loop** (you'd reinvent offsets, batching,
+  exactly-once — all easy to get subtly wrong).
+- **Transform on ingest** (dedup, joins, windows, schema enforcement, exactly-once into a
+  lakehouse) → **Spark Structured Streaming**. Its superpower: **the same DataFrame code for
+  batch and stream**, plus exactly-once when paired with a Delta/Iceberg sink (offsets + table
+  commit advance atomically). Trade-off: **micro-batch latency (~seconds)**, fine for analytics.
+- **Sub-second, per-event, complex event-time / CEP** → **Apache Flink** (true streaming).
+
+So Structured Streaming is a mainstream, viable choice — it competes with **Flink** (for
+real-time) and **simple sink connectors** (for plain landing), not with Kafka, which is its
+*source*. Our file-source demo stands in for that Kafka source; swap `readStream.json(dir)`
+for `readStream.format("kafka")` and the rest barely changes.

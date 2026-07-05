@@ -27,6 +27,18 @@ literally spawned **3000 tasks, one per tiny file** — pure scheduling overhead
   `repartition("order_date")` puts all of a date's rows on one task → **one file per
   date** (603 → 245 files, and smaller total from better compression).
 
+### How that actually works (the mechanism)
+When you `write.partitionBy("order_date")`, **each in-memory partition writes its own file
+into every date folder it holds rows for.** So:
+> files in `order_date=D/` = the number of in-memory partitions that contain a row for D.
+Without `repartition`, a date's rows are scattered across all ~8 partitions → up to 8 files
+per folder. `repartition("order_date")` first **shuffles** by date so each date sits in one
+partition → one file per folder. Trade-offs: that extra shuffle isn't free, and it can create
+a **skewed write** (all of a hot date on one task) — for skewed keys use `repartition(N,"col")`
+or the writer option `maxRecordsPerFile`. Also know the difference: `repartition` = full
+shuffle (can grow/shrink, co-locate by key); **`coalesce(n)` = merge partitions with no
+shuffle** (only shrinks, cheaper, but uneven).
+
 ## The nuance that makes you dangerous
 Even the "good" layout was **over-partitioned** — 245 partitions of ~12 KB. Partition
 granularity must match data volume: partition by *day* only when a day is hundreds of

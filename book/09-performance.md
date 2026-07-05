@@ -18,6 +18,13 @@ Same 3.5M-row SortMergeJoin, different partition counts (a **U-curve**):
 | 1000 **+ AQE** | **1193 ms** | AQE coalesced to the right number |
 **Leave it high and let AQE coalesce.** Correctness never changed — only speed.
 
+> **Where does the partition count come from?** Not the data — the config. A plan node
+> `Exchange hashpartitioning(tenant_id, 8)` means each row goes to `hash(tenant_id) % 8`,
+> and the `8` is `spark.sql.shuffle.partitions` (Spark's default is **200**; `_spark.py`
+> sets 8 for our small data). With AQE on, that number is just the *initial* target —
+> AQE coalesces it at runtime based on real shuffle size (why the pre-execution plan says
+> `isFinalPlan=false`).
+
 ## Spill (`spill_demo.py`)
 Forced with `shuffle.partitions=2` + a low `numElementsForceSpillThreshold`. The UI
 showed `Spill (Memory) 268 MiB`, `Spill (Disk) 52 MiB` — **same data, two measures**:
