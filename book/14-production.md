@@ -28,6 +28,17 @@ dashboards** — a sudden row-count drop, a file-count explosion, a runtime spik
 | How do I debug a slow run? | Spark UI: heaviest stage → Max-vs-Median → skew/spill (Phase 8/9) |
 | How do I prevent silent corruption? | composite keys, reconciliation tests, quarantine tables |
 
+## Going deeper — emit & guard metrics (hands-on)
+[`metrics_harness.py`](../phases/phase14-production/metrics_harness.py) wraps the mart build
+and appends a metrics record (runtime, input/output/rejected rows, output files/bytes, and
+**shuffle bytes pulled from Spark's REST API** at `{uiWebUrl}/api/v1/applications/{app}/stages`)
+to a JSONL log. [`test_job_metrics.py`](../phases/phase14-production/test_job_metrics.py) then
+asserts each metric stays in a band — a **regression guard**. We watched it catch a simulated
+mart collapse (`output_rows=12`) that a naive "not empty" (`> 0`) check *passed*: **bands beat
+binary checks**, and metrics tests cost ~nothing (no Spark). In production these fan out to a
+monitoring backend (alerting), a warehouse table (history), and a data-observability tool
+(anomaly detection) — see the note at the end of this chapter.
+
 ## The recurring themes across all phases
 - **Idempotency** — a job you can safely re-run (dynamic overwrite, deterministic ids).
 - **Observability** — plans, the Spark UI, and emitted metrics.

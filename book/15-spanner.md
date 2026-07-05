@@ -28,6 +28,21 @@ system of record   Pub/Sub · Kafka · GCS      bronze→silver→gold + streami
 bridge: it turns transactional mutations into an append-only feed that Spark ingests
 into bronze. Analytics never touches the live transactional store.
 
+## Going deeper — a CDC ingestion job (hands-on)
+[`generate_cdc.py`](../phases/phase15-spanner/generate_cdc.py) simulates a Spanner change
+stream: each mutation is a change event `{op:I/U/D, commit_ts, seq, key, ...}`, shuffled across
+files (out-of-order arrival). [`apply_cdc.py`](../phases/phase15-spanner/apply_cdc.py) applies it:
+
+- **bronze = the raw append-only change log** (immutable, replayable, audit trail).
+- **silver = current state** via `row_number()` over `partitionBy(key) orderBy(commit_ts desc,
+  seq desc)`, keep `rn==1`, then `filter(op != 'D')` to apply **delete tombstones**.
+
+Result reconciled exactly: 1,780 events (1000 I + 700 U + 80 D) → **920 current rows** =
+distinct − deleted. Arrival order didn't matter (commit_ts + seq decide the winner). This is
+what Delta/Iceberg `MERGE INTO` automates, and it's **idempotent** (replay → same state).
+Keep the full log and you get **time-travel**: `filter(commit_ts <= T)` then merge rebuilds
+state *as of* T — which is Phase 12's point-in-time correctness, by construction.
+
 ## Full circle
 This is exactly the medallion pipeline you built: the "landing" zone stood in for a
 Spanner export, and everything downstream (bronze → silver → gold → features →
